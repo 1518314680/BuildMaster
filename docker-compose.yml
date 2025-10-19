@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # MySQL 数据库
+  mysql:
+    image: mysql:8.0
+    container_name: buildmaster-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: buildmaster
+      MYSQL_USER: buildmaster
+      MYSQL_PASSWORD: buildmaster
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./BuildMaster-API/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - buildmaster-network
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: buildmaster-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - buildmaster-network
+
+  # 后端 API 服务
+  api:
+    build:
+      context: ./BuildMaster-API
+      dockerfile: Dockerfile
+    container_name: buildmaster-api
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/buildmaster?serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: buildmaster
+      SPRING_DATASOURCE_PASSWORD: buildmaster
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      AI_API_KEY: ${AI_API_KEY:-your-key-here}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - buildmaster-network
+
+  # 前端 UI 服务
+  ui:
+    build:
+      context: ./BuildMaster-UI
+      dockerfile: Dockerfile
+    container_name: buildmaster-ui
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8080/api
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    networks:
+      - buildmaster-network
+
+volumes:
+  mysql_data:
+  redis_data:
+
+networks:
+  buildmaster-network:
+    driver: bridge
