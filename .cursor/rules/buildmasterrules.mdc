@@ -1,0 +1,106 @@
+---
+alwaysApply: true
+---
+前端开发规则
+
+组件命名：
+
+使用 PascalCase（如 CpuCard, BuildPage）进行组件命名。
+
+文件名与组件名称一致，例如：CpuCard.tsx 对应组件 CpuCard。
+
+状态管理：
+
+使用 Zustand 进行全局状态管理。
+
+使用 useState 和 useEffect 处理局部状态。
+
+API 请求：
+
+使用 Axios 进行后端 API 请求。
+
+示例：/api/components 获取配件列表。
+
+动画与视觉效果：
+
+使用 Framer Motion 创建动画效果，例如配件的逐步插入。
+
+使用 Tailwind CSS 实现快速布局，响应式设计。
+
+页面结构：
+
+首页 (page.tsx)：展示平台简介，提供“开始装机”按钮。
+
+装机页面 (/build)：提供配件选择器、兼容性校验与装机过程动画。
+
+AI 推荐页面 (/ai-assistant)：用户输入预算和需求，系统自动推荐配件组合。
+
+配置单页面 (/config/[id])：展示并保存用户选择的配件列表。
+
+代码格式：
+
+使用 Prettier 和 ESLint 保持代码风格一致。
+
+后端开发规则
+
+数据库设计：
+
+使用 MySQL 存储配件、用户配置、订单数据。
+
+数据库表：component（配件表），build_config（配置单表），user（用户表）。
+
+使用 JPA 和 Hibernate 进行数据操作。
+
+API 路由设计：
+
+后端 API 路由需要符合 RESTful 规范。
+
+示例接口：
+
+GET /api/components 获取所有配件。
+
+POST /api/config/save 保存用户的装机配置。
+
+POST /api/ai/recommend 获取 AI 推荐配置。
+
+服务设计：
+
+使用 Spring Boot 创建后端服务，分为 Controller、Service 和 Repository 层。
+
+ComponentService：管理配件数据，支持搜索、筛选。
+
+AiService：集成 AI 推荐功能（调用 DeepSeek 或 通义千问）。
+
+PriceScraperService：定时抓取电商平台价格。
+
+数据库与缓存：
+
+使用 Redis 缓存查询结果，提高性能。
+
+使用 Elasticsearch 提供配件的全文搜索与过滤功能。
+
+代码格式：
+
+使用 Springdoc + Swagger 自动生成接口文档。
+
+配置 Lombok 简化实体类代码。
+
+开发流程与协作规则
+
+GitFlow 工作流：
+
+使用 GitFlow 分支管理工作流，分为 develop、feature/*、release/* 和 hotfix/* 分支。
+
+代码审查：
+
+每次提交代码前，确保经过 Code Review 流程。
+
+自动化部署：
+
+配置 CI/CD 流水线（如 GitHub Actions），实现自动化测试与部署。
+
+前后端联调：
+
+前端通过 Axios 与后端 RESTful API 交互，确保接口参数一致。
+
+使用 Swagger 或 Postman 进行后端接口调试。
