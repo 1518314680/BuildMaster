@@ -53,6 +53,18 @@ public class Component {
     @Column(name = "jd_sku_id")
     private String jdSkuId;  // 京东商品ID，用于价格更新
     
+    @Column(name = "purchase_url", columnDefinition = "TEXT")
+    private String purchaseUrl;  // 购买链接（京东联盟推广链接）
+    
+    @Column(name = "price_updated_at")
+    private LocalDateTime priceUpdatedAt;  // 价格最后更新时间
+    
+    @Column(name = "original_price", precision = 10, scale = 2)
+    private BigDecimal originalPrice;  // 原价
+    
+    @Column(name = "commission_rate")
+    private BigDecimal commissionRate;  // 佣金比例
+    
     @Column(name = "specs", columnDefinition = "TEXT")
     private String specs;  // 规格说明（简化版）
     

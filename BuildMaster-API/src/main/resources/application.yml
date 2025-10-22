@@ -48,6 +48,18 @@ jd:
     enabled: false  # 是否启用京东API（设置为true启用）
     app-key: ${JD_APP_KEY:}  # 京东应用Key
     app-secret: ${JD_APP_SECRET:}  # 京东应用Secret
+    site-id: ${JD_SITE_ID:}  # 推广位ID
+
+# 定时任务配置
+price-update:
+  # 价格更新定时任务 cron表达式（默认每2小时执行一次）
+  # 格式: 秒 分 时 日 月 周
+  # 示例: 0 0 */2 * * ? 表示每2小时整点执行
+  cron: 0 0 */2 * * ?
+
+promotion-url-update:
+  # 推广链接更新定时任务 cron表达式（默认每天凌晨3点执行）
+  cron: 0 0 3 * * ?
 
 logging:
   level:

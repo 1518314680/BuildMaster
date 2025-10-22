@@ -40,19 +40,29 @@ DROP TABLE IF EXISTS components;
 CREATE TABLE components (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '配件ID',
     name VARCHAR(200) NOT NULL COMMENT '配件名称',
-    type VARCHAR(50) NOT NULL COMMENT '配件类型：CPU/GPU/MOTHERBOARD/RAM/STORAGE/CASE/PSU/COOLER',
+    brand VARCHAR(100) COMMENT '品牌',
+    model VARCHAR(100) COMMENT '型号',
+    type VARCHAR(50) NOT NULL COMMENT '配件类型：CPU/GPU/MOTHERBOARD/MEMORY/STORAGE/CASE/POWER_SUPPLY/COOLER',
     description TEXT COMMENT '配件描述',
-    price DECIMAL(10, 2) NOT NULL COMMENT '价格',
+    price DECIMAL(10, 2) NOT NULL COMMENT '当前价格',
+    original_price DECIMAL(10, 2) COMMENT '原价',
     image_url VARCHAR(255) COMMENT '图片URL',
     specifications JSON COMMENT '规格参数（JSON格式）',
+    specs TEXT COMMENT '规格说明（简化版）',
     is_available BOOLEAN DEFAULT TRUE COMMENT '是否可用',
     stock_quantity INT DEFAULT 0 COMMENT '库存数量',
+    jd_sku_id VARCHAR(50) COMMENT '京东商品SKU ID',
+    purchase_url TEXT COMMENT '购买链接（京东联盟推广链接）',
+    price_updated_at DATETIME COMMENT '价格最后更新时间',
+    commission_rate DECIMAL(5, 2) COMMENT '佣金比例',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     INDEX idx_type (type),
+    INDEX idx_brand (brand),
     INDEX idx_price (price),
     INDEX idx_is_available (is_available),
-    INDEX idx_name (name)
+    INDEX idx_name (name),
+    INDEX idx_jd_sku_id (jd_sku_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='配件表';
 
 -- ----------------------------------------------------------------------------

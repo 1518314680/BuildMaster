@@ -1,14 +1,25 @@
 package com.buildmaster.service;
 
 import com.buildmaster.model.Component;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -16,7 +27,11 @@ import java.util.stream.Collectors;
  * 京东开放平台API服务
  * 文档: https://union.jd.com/openplatform/
  * 
- * 注意: 需要先申请京东联盟账号和API权限
+ * 主要功能：
+ * 1. 商品搜索
+ * 2. 商品详情查询
+ * 3. 价格查询
+ * 4. 推广链接生成
  */
 @Slf4j
 @Service
@@ -28,10 +43,17 @@ public class JDApiService {
     @Value("${jd.api.app-secret:}")
     private String appSecret;
 
+    @Value("${jd.api.site-id:}")
+    private String siteId;  // 推广位ID
+
     @Value("${jd.api.enabled:false}")
     private boolean apiEnabled;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final HttpClient httpClient = HttpClient.newHttpClient();
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    private static final String JD_API_URL = "https://router.jd.com/api";
+    private static final String JD_PRICE_API = "https://p.3.cn/prices/mgets";
 
     /**
      * 检查API是否已配置
@@ -57,7 +79,7 @@ public class JDApiService {
 
         try {
             // 构建API请求参数
-            Map<String, String> params = new HashMap<>();
+            Map<String, String> params = new TreeMap<>();
             params.put("method", "jd.union.open.goods.query");
             params.put("app_key", appKey);
             params.put("timestamp", String.valueOf(System.currentTimeMillis()));
@@ -71,21 +93,32 @@ public class JDApiService {
             bizParams.put("pageSize", pageSize);
             bizParams.put("pageIndex", 1);
             
-            params.put("360buy_param_json", toJsonString(bizParams));
+            String paramJson = objectMapper.writeValueAsString(bizParams);
+            params.put("360buy_param_json", paramJson);
             
             // 生成签名
             String sign = generateSign(params);
             params.put("sign", sign);
             
-            // 发送请求（这里是示例，实际需要使用官方SDK）
-            String url = "https://router.jd.com/api";
+            // 构建URL
+            String url = buildUrl(JD_API_URL, params);
+            
             log.info("调用京东API搜索: {}", keyword);
             
-            // TODO: 实际调用API并解析响应
-            // String response = restTemplate.getForObject(url + "?" + buildQueryString(params), String.class);
-            // return parseSearchResponse(response);
+            // 发送请求
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .GET()
+                    .build();
             
-            return Collections.emptyList();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            
+            if (response.statusCode() == 200) {
+                return parseSearchResponse(response.body());
+            } else {
+                log.error("京东API调用失败，状态码: {}", response.statusCode());
+                return Collections.emptyList();
+            }
             
         } catch (Exception e) {
             log.error("京东API搜索失败: {}", keyword, e);
@@ -107,22 +140,38 @@ public class JDApiService {
         }
 
         try {
-            Map<String, String> params = new HashMap<>();
+            Map<String, String> params = new TreeMap<>();
             params.put("method", "jd.union.open.goods.promotiongoodsinfo.query");
             params.put("app_key", appKey);
             params.put("timestamp", String.valueOf(System.currentTimeMillis()));
             params.put("format", "json");
+            params.put("v", "1.0");
+            params.put("sign_method", "md5");
             
             Map<String, Object> bizParams = new HashMap<>();
             bizParams.put("skuIds", Collections.singletonList(skuId));
-            params.put("360buy_param_json", toJsonString(bizParams));
+            
+            String paramJson = objectMapper.writeValueAsString(bizParams);
+            params.put("360buy_param_json", paramJson);
             
             String sign = generateSign(params);
             params.put("sign", sign);
             
+            String url = buildUrl(JD_API_URL, params);
+            
             log.info("获取京东商品详情: {}", skuId);
             
-            // TODO: 实际API调用
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .GET()
+                    .build();
+            
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            
+            if (response.statusCode() == 200) {
+                return parseProductDetail(response.body());
+            }
+            
             return null;
             
         } catch (Exception e) {
@@ -137,21 +186,28 @@ public class JDApiService {
      * @param skuId 京东商品ID
      * @return 价格
      */
-    @Cacheable(value = "jd-price", key = "#skuId")
+    @Cacheable(value = "jd-price", key = "#skuId", unless = "#result == null")
     public BigDecimal getPrice(String skuId) {
         if (!isApiConfigured()) {
             return null;
         }
 
         try {
-            // 价格查询API
-            String url = String.format("https://p.3.cn/prices/mgets?skuIds=J_%s", skuId);
+            // 价格查询API（不需要签名）
+            String url = String.format("%s?skuIds=J_%s", JD_PRICE_API, skuId);
             
             log.info("查询京东价格: {}", skuId);
             
-            // TODO: 实际API调用并解析
-            // String response = restTemplate.getForObject(url, String.class);
-            // return parsePriceResponse(response);
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .GET()
+                    .build();
+            
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            
+            if (response.statusCode() == 200) {
+                return parsePriceResponse(response.body());
+            }
             
             return null;
             
@@ -185,13 +241,20 @@ public class JDApiService {
                     .map(id -> "J_" + id)
                     .collect(Collectors.joining(","));
                 
-                String url = "https://p.3.cn/prices/mgets?skuIds=" + skuIdsParam;
+                String url = String.format("%s?skuIds=%s", JD_PRICE_API, skuIdsParam);
                 
                 log.info("批量查询价格: {} 个商品", batch.size());
                 
-                // TODO: 实际API调用并解析
-                // String response = restTemplate.getForObject(url, String.class);
-                // prices.putAll(parseBatchPriceResponse(response));
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(url))
+                        .GET()
+                        .build();
+                
+                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+                
+                if (response.statusCode() == 200) {
+                    prices.putAll(parseBatchPriceResponse(response.body()));
+                }
                 
                 // 避免频率限制
                 if (i + batchSize < skuIds.size()) {
@@ -206,12 +269,66 @@ public class JDApiService {
     }
 
     /**
+     * 生成推广链接
+     * 
+     * @param skuId 商品ID
+     * @return 推广链接
+     */
+    public String generatePromotionUrl(String skuId) {
+        if (!isApiConfigured()) {
+            return null;
+        }
+
+        try {
+            Map<String, String> params = new TreeMap<>();
+            params.put("method", "jd.union.open.promotion.common.get");
+            params.put("app_key", appKey);
+            params.put("timestamp", String.valueOf(System.currentTimeMillis()));
+            params.put("format", "json");
+            params.put("v", "1.0");
+            params.put("sign_method", "md5");
+            
+            Map<String, Object> bizParams = new HashMap<>();
+            bizParams.put("materialId", "https://item.jd.com/" + skuId + ".html");
+            bizParams.put("siteId", siteId);
+            
+            String paramJson = objectMapper.writeValueAsString(bizParams);
+            params.put("360buy_param_json", paramJson);
+            
+            String sign = generateSign(params);
+            params.put("sign", sign);
+            
+            String url = buildUrl(JD_API_URL, params);
+            
+            log.info("生成推广链接: {}", skuId);
+            
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .GET()
+                    .build();
+            
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            
+            if (response.statusCode() == 200) {
+                return parsePromotionUrl(response.body());
+            }
+            
+            return null;
+            
+        } catch (Exception e) {
+            log.error("生成推广链接失败: {}", skuId, e);
+            return null;
+        }
+    }
+
+    /**
      * 生成API签名
      */
     private String generateSign(Map<String, String> params) {
         try {
             // 1. 参数排序
             String sortedParams = params.entrySet().stream()
+                .filter(e -> !"sign".equals(e.getKey()))
                 .sorted(Map.Entry.comparingByKey())
                 .map(e -> e.getKey() + e.getValue())
                 .collect(Collectors.joining());
@@ -221,7 +338,7 @@ public class JDApiService {
             
             // 3. MD5加密
             MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] digest = md.digest(signStr.getBytes("UTF-8"));
+            byte[] digest = md.digest(signStr.getBytes(StandardCharsets.UTF_8));
             
             // 4. 转大写hex
             StringBuilder sb = new StringBuilder();
@@ -238,46 +355,204 @@ public class JDApiService {
     }
 
     /**
-     * 将Map转为JSON字符串（简化版）
+     * 构建URL
      */
-    private String toJsonString(Map<String, Object> map) {
-        // 实际应该使用 Jackson 或 Gson
-        StringBuilder json = new StringBuilder("{");
-        
-        map.forEach((key, value) -> {
-            json.append("\"").append(key).append("\":");
-            if (value instanceof String) {
-                json.append("\"").append(value).append("\"");
-            } else if (value instanceof List) {
-                json.append("[");
-                List<?> list = (List<?>) value;
-                for (int i = 0; i < list.size(); i++) {
-                    if (i > 0) json.append(",");
-                    json.append("\"").append(list.get(i)).append("\"");
+    private String buildUrl(String baseUrl, Map<String, String> params) {
+        String queryString = params.entrySet().stream()
+            .map(e -> {
+                try {
+                    return e.getKey() + "=" + URLEncoder.encode(e.getValue(), StandardCharsets.UTF_8);
+                } catch (Exception ex) {
+                    return e.getKey() + "=" + e.getValue();
                 }
-                json.append("]");
-            } else {
-                json.append(value);
-            }
-            json.append(",");
-        });
+            })
+            .collect(Collectors.joining("&"));
         
-        if (json.charAt(json.length() - 1) == ',') {
-            json.setLength(json.length() - 1);
-        }
-        
-        json.append("}");
-        return json.toString();
+        return baseUrl + "?" + queryString;
     }
 
     /**
-     * 构建查询字符串
+     * 解析搜索响应
      */
-    private String buildQueryString(Map<String, String> params) {
-        return params.entrySet().stream()
-            .map(e -> e.getKey() + "=" + e.getValue())
-            .collect(Collectors.joining("&"));
+    private List<Component> parseSearchResponse(String responseBody) {
+        List<Component> components = new ArrayList<>();
+        
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+            JsonNode resultNode = root.path("jd_union_open_goods_query_response")
+                                      .path("result");
+            
+            if (resultNode.isMissingNode()) {
+                log.warn("响应中没有result字段");
+                return components;
+            }
+            
+            String resultStr = resultNode.asText();
+            JsonNode resultJson = objectMapper.readTree(resultStr);
+            JsonNode dataList = resultJson.path("data");
+            
+            if (dataList.isArray()) {
+                for (JsonNode item : dataList) {
+                    Component component = parseProductItem(item);
+                    if (component != null) {
+                        components.add(component);
+                    }
+                }
+            }
+            
+        } catch (Exception e) {
+            log.error("解析搜索响应失败", e);
+        }
+        
+        return components;
+    }
+
+    /**
+     * 解析商品详情
+     */
+    private Component parseProductDetail(String responseBody) {
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+            JsonNode resultNode = root.path("jd_union_open_goods_promotiongoodsinfo_query_response")
+                                      .path("result");
+            
+            if (!resultNode.isMissingNode()) {
+                String resultStr = resultNode.asText();
+                JsonNode resultJson = objectMapper.readTree(resultStr);
+                JsonNode dataList = resultJson.path("data");
+                
+                if (dataList.isArray() && dataList.size() > 0) {
+                    return parseProductItem(dataList.get(0));
+                }
+            }
+            
+        } catch (Exception e) {
+            log.error("解析商品详情失败", e);
+        }
+        
+        return null;
+    }
+
+    /**
+     * 解析单个商品项
+     */
+    private Component parseProductItem(JsonNode item) {
+        try {
+            Component component = new Component();
+            
+            JsonNode skuInfo = item.path("skuInfo");
+            JsonNode priceInfo = item.path("priceInfo");
+            JsonNode imageInfo = item.path("imageInfo");
+            
+            // 基本信息
+            component.setJdSkuId(skuInfo.path("skuId").asText());
+            component.setName(skuInfo.path("skuName").asText());
+            component.setBrand(skuInfo.path("brandName").asText());
+            
+            // 价格信息
+            if (!priceInfo.isMissingNode()) {
+                BigDecimal price = priceInfo.path("price").decimalValue();
+                BigDecimal lowestPrice = priceInfo.path("lowestPrice").decimalValue();
+                
+                component.setPrice(lowestPrice != null ? lowestPrice : price);
+                component.setOriginalPrice(price);
+                component.setPriceUpdatedAt(LocalDateTime.now());
+                
+                // 佣金信息
+                JsonNode commissionInfo = item.path("commissionInfo");
+                if (!commissionInfo.isMissingNode()) {
+                    component.setCommissionRate(commissionInfo.path("commissionShare").decimalValue());
+                }
+            }
+            
+            // 图片
+            if (!imageInfo.isMissingNode()) {
+                JsonNode imageList = imageInfo.path("imageList");
+                if (imageList.isArray() && imageList.size() > 0) {
+                    component.setImageUrl(imageList.get(0).path("url").asText());
+                }
+            }
+            
+            // 库存
+            component.setIsAvailable(true);
+            component.setStockQuantity(999);
+            
+            return component;
+            
+        } catch (Exception e) {
+            log.error("解析商品项失败", e);
+            return null;
+        }
+    }
+
+    /**
+     * 解析价格响应
+     */
+    private BigDecimal parsePriceResponse(String responseBody) {
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+            if (root.isArray() && root.size() > 0) {
+                JsonNode firstItem = root.get(0);
+                String priceStr = firstItem.path("p").asText();
+                if (priceStr != null && !priceStr.isEmpty()) {
+                    return new BigDecimal(priceStr);
+                }
+            }
+        } catch (Exception e) {
+            log.error("解析价格响应失败", e);
+        }
+        
+        return null;
+    }
+
+    /**
+     * 解析批量价格响应
+     */
+    private Map<String, BigDecimal> parseBatchPriceResponse(String responseBody) {
+        Map<String, BigDecimal> prices = new HashMap<>();
+        
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+            if (root.isArray()) {
+                for (JsonNode item : root) {
+                    String id = item.path("id").asText();
+                    String priceStr = item.path("p").asText();
+                    
+                    if (id != null && priceStr != null && !priceStr.isEmpty()) {
+                        // 移除 "J_" 前缀
+                        String skuId = id.replace("J_", "");
+                        prices.put(skuId, new BigDecimal(priceStr));
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("解析批量价格响应失败", e);
+        }
+        
+        return prices;
+    }
+
+    /**
+     * 解析推广链接
+     */
+    private String parsePromotionUrl(String responseBody) {
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+            JsonNode resultNode = root.path("jd_union_open_promotion_common_get_response")
+                                      .path("result");
+            
+            if (!resultNode.isMissingNode()) {
+                String resultStr = resultNode.asText();
+                JsonNode resultJson = objectMapper.readTree(resultStr);
+                JsonNode data = resultJson.path("data");
+                
+                return data.path("clickURL").asText();
+            }
+            
+        } catch (Exception e) {
+            log.error("解析推广链接失败", e);
+        }
+        
+        return null;
     }
 }
-
-

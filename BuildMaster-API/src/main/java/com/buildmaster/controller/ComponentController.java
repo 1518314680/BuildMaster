@@ -3,6 +3,7 @@ package com.buildmaster.controller;
 import com.buildmaster.model.Component;
 import com.buildmaster.service.ComponentService;
 import com.buildmaster.service.ComponentImportService;
+import com.buildmaster.service.PriceUpdateScheduler;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,7 @@ public class ComponentController {
     
     private final ComponentService componentService;
     private final ComponentImportService importService;
+    private final PriceUpdateScheduler priceUpdateScheduler;
     
     @GetMapping
     public ResponseEntity<List<Component>> getAllComponents() {
@@ -170,5 +172,81 @@ public class ComponentController {
         return ResponseEntity.ok()
                 .header("Content-Disposition", "attachment; filename=\"component_template.csv\"")
                 .body(template);
+    }
+    
+    /**
+     * 手动触发所有配件价格更新
+     */
+    @PostMapping("/update-prices")
+    @Operation(summary = "更新所有价格", description = "手动触发所有配件价格更新（需要配置京东API）")
+    public ResponseEntity<Map<String, Object>> updateAllPrices() {
+        PriceUpdateScheduler.UpdateResult result = priceUpdateScheduler.updateAllPrices();
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("successCount", result.successCount);
+        response.put("failureCount", result.failureCount);
+        response.put("skipCount", result.skipCount);
+        response.put("totalCount", result.getTotalCount());
+        response.put("message", "价格更新完成");
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * 更新单个配件价格
+     */
+    @PostMapping("/{id}/update-price")
+    @Operation(summary = "更新单个配件价格", description = "手动触发单个配件价格更新")
+    public ResponseEntity<Map<String, Object>> updateSinglePrice(@PathVariable Long id) {
+        boolean success = priceUpdateScheduler.updateSinglePrice(id);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", success);
+        response.put("message", success ? "价格更新成功" : "价格更新失败");
+        
+        if (!success) {
+            return ResponseEntity.badRequest().body(response);
+        }
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * 手动触发所有推广链接更新
+     */
+    @PostMapping("/update-promotion-urls")
+    @Operation(summary = "更新所有推广链接", description = "手动触发所有配件推广链接更新（需要配置京东API）")
+    public ResponseEntity<Map<String, Object>> updateAllPromotionUrls() {
+        PriceUpdateScheduler.UpdateResult result = priceUpdateScheduler.updateAllPromotionUrls();
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("successCount", result.successCount);
+        response.put("failureCount", result.failureCount);
+        response.put("skipCount", result.skipCount);
+        response.put("totalCount", result.getTotalCount());
+        response.put("message", "推广链接更新完成");
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * 更新单个配件推广链接
+     */
+    @PostMapping("/{id}/update-promotion-url")
+    @Operation(summary = "更新单个配件推广链接", description = "手动触发单个配件推广链接更新")
+    public ResponseEntity<Map<String, Object>> updateSinglePromotionUrl(@PathVariable Long id) {
+        boolean success = priceUpdateScheduler.updateSinglePromotionUrl(id);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", success);
+        response.put("message", success ? "推广链接更新成功" : "推广链接更新失败");
+        
+        if (!success) {
+            return ResponseEntity.badRequest().body(response);
+        }
+        
+        return ResponseEntity.ok(response);
     }
 }
