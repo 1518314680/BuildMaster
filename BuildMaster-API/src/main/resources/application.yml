@@ -46,7 +46,7 @@ spring:
 jd:
   api:
     enabled: false  # 是否启用京东API（设置为true启用）
-    app-key: ${JD_APP_KEY:}  # 京东应用Key
+    app-key: f48c063173f717ca8422070adc9d7ecc0befd290bacb3e1e4d91bd2fb67f6d1e459cb28920b52b68  # 京东应用Key
     app-secret: ${JD_APP_SECRET:}  # 京东应用Secret
     site-id: ${JD_SITE_ID:}  # 推广位ID
 

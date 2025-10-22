@@ -33,7 +33,7 @@ public class PriceUpdateScheduler {
 
     /**
      * 定时更新价格（每2小时执行一次）
-     * cron表达式: 0 0 */2 * * ? 表示每2小时的整点执行
+     * cron表达式: 0 0 *\\2 * * ? 表示每2小时的整点执行
      */
     @Scheduled(cron = "${price-update.cron:0 0 */2 * * ?}")
     @Transactional
