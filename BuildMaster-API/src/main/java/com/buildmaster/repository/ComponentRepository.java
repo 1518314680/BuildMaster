@@ -26,4 +26,6 @@ public interface ComponentRepository extends JpaRepository<Component, Long> {
     
     @Query("SELECT c FROM Component c WHERE c.name LIKE %:keyword% OR c.description LIKE %:keyword%")
     List<Component> searchByKeyword(@Param("keyword") String keyword);
+    
+    java.util.Optional<Component> findByNameAndBrand(String name, String brand);
 }

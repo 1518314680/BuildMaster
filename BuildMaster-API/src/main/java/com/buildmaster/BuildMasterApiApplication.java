@@ -1,4 +1,4 @@
-package com.build.master;
+package com.buildmaster;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

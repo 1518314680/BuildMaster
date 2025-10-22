@@ -28,6 +28,10 @@ public class Component {
     @Column(nullable = false)
     private ComponentType type;
     
+    private String brand;
+    
+    private String model;
+    
     @Column(columnDefinition = "TEXT")
     private String description;
     
@@ -46,6 +50,12 @@ public class Component {
     @Column(name = "stock_quantity")
     private Integer stockQuantity = 0;
     
+    @Column(name = "jd_sku_id")
+    private String jdSkuId;  // 京东商品ID，用于价格更新
+    
+    @Column(name = "specs", columnDefinition = "TEXT")
+    private String specs;  // 规格说明（简化版）
+    
     @CreationTimestamp
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -55,6 +65,6 @@ public class Component {
     private LocalDateTime updatedAt;
     
     public enum ComponentType {
-        CPU, GPU, MOTHERBOARD, RAM, STORAGE, CASE, PSU, COOLER
+        CPU, GPU, MOTHERBOARD, MEMORY, STORAGE, CASE, POWER_SUPPLY, COOLER
     }
 }

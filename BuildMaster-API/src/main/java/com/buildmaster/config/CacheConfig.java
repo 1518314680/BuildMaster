@@ -14,10 +14,10 @@ public class CacheConfig {
     
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
-        RedisCacheManager.Builder builder = RedisCacheManager
+        RedisCacheManager.RedisCacheManagerBuilder builder = RedisCacheManager
                 .RedisCacheManagerBuilder
                 .fromConnectionFactory(connectionFactory);
-        
+
         return builder.build();
     }
 }

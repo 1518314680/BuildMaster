@@ -1,28 +1,107 @@
+-- ============================================================================
+-- BuildMaster 配件信息管理系统 - 数据库初始化脚本
+-- 数据库：buildmaster
+-- 数据库类型：MySQL 8.0+
+-- 创建时间：2025-10-20
+-- ============================================================================
+
 -- 创建数据库（如果不存在）
 CREATE DATABASE IF NOT EXISTS buildmaster CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 USE buildmaster;
 
--- 插入示例配件数据
-INSERT INTO components (name, type, description, price, image_url, specifications, is_available, stock_quantity) VALUES
-('Intel Core i5-13400F', 'CPU', '10核16线程处理器，基础频率2.5GHz', 1299.00, '/images/cpu.png', '{"cores": "10核16线程", "base_frequency": "2.5GHz", "max_turbo": "4.6GHz", "tdp": "65W"}', true, 50),
-('Intel Core i7-13700F', 'CPU', '16核24线程处理器，基础频率2.1GHz', 2199.00, '/images/cpu.png', '{"cores": "16核24线程", "base_frequency": "2.1GHz", "max_turbo": "5.2GHz", "tdp": "65W"}', true, 30),
-('NVIDIA RTX 4060', 'GPU', '8GB GDDR6显存，适合1080p游戏', 2399.00, '/images/gpu.png', '{"memory": "8GB GDDR6", "core_clock": "1830MHz", "memory_bus": "128-bit", "tdp": "115W"}', true, 25),
-('NVIDIA RTX 4070', 'GPU', '12GB GDDR6X显存，适合1440p游戏', 4299.00, '/images/gpu.png', '{"memory": "12GB GDDR6X", "core_clock": "1920MHz", "memory_bus": "192-bit", "tdp": "200W"}', true, 15),
-('MSI B760M PRO', 'MOTHERBOARD', 'Micro-ATX主板，支持DDR4内存', 699.00, '/images/motherboard.png', '{"chipset": "Intel B760", "memory_slots": "4个DDR4", "pcie_slots": "1个PCIe 4.0 x16", "sata_ports": "4个SATA 6Gb/s"}', true, 40),
-('MSI Z790-A PRO', 'MOTHERBOARD', 'ATX主板，支持DDR5内存', 1299.00, '/images/motherboard.png', '{"chipset": "Intel Z790", "memory_slots": "4个DDR5", "pcie_slots": "2个PCIe 5.0 x16", "sata_ports": "6个SATA 6Gb/s"}', true, 20),
-('Corsair Vengeance 16GB DDR4', 'RAM', '16GB DDR4-3200内存套装', 399.00, '/images/ram.png', '{"capacity": "16GB (2x8GB)", "frequency": "DDR4-3200", "timing": "CL16", "voltage": "1.35V"}', true, 100),
-('Corsair Vengeance 32GB DDR5', 'RAM', '32GB DDR5-5600内存套装', 899.00, '/images/ram.png', '{"capacity": "32GB (2x16GB)", "frequency": "DDR5-5600", "timing": "CL36", "voltage": "1.25V"}', true, 50),
-('Fractal Design Core 1000', 'CASE', '中塔式机箱，支持Micro-ATX主板', 299.00, '/images/case.png', '{"form_factor": "中塔式", "motherboard_support": "Micro-ATX", "drive_bays": "2个3.5寸", "fan_mounts": "2个120mm"}', true, 60),
-('Fractal Design Define 7', 'CASE', '全塔式机箱，支持E-ATX主板', 899.00, '/images/case.png', '{"form_factor": "全塔式", "motherboard_support": "E-ATX", "drive_bays": "8个3.5寸", "fan_mounts": "7个120mm"}', true, 25);
+-- ============================================================================
+-- 表结构定义
+-- ============================================================================
 
+-- ----------------------------------------------------------------------------
+-- 用户表 (users)
+-- 存储系统用户信息
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS users;
+CREATE TABLE users (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '用户ID',
+    username VARCHAR(50) NOT NULL UNIQUE COMMENT '用户名',
+    email VARCHAR(100) NOT NULL UNIQUE COMMENT '邮箱',
+    password_hash VARCHAR(255) COMMENT '密码哈希',
+    display_name VARCHAR(100) COMMENT '显示名称',
+    avatar_url VARCHAR(255) COMMENT '头像URL',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_username (username),
+    INDEX idx_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
+
+-- ----------------------------------------------------------------------------
+-- 配件表 (components)
+-- 存储所有电脑配件信息（CPU/GPU/主板/内存/电源/硬盘/机箱等）
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS components;
+CREATE TABLE components (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '配件ID',
+    name VARCHAR(200) NOT NULL COMMENT '配件名称',
+    type VARCHAR(50) NOT NULL COMMENT '配件类型：CPU/GPU/MOTHERBOARD/RAM/STORAGE/CASE/PSU/COOLER',
+    description TEXT COMMENT '配件描述',
+    price DECIMAL(10, 2) NOT NULL COMMENT '价格',
+    image_url VARCHAR(255) COMMENT '图片URL',
+    specifications JSON COMMENT '规格参数（JSON格式）',
+    is_available BOOLEAN DEFAULT TRUE COMMENT '是否可用',
+    stock_quantity INT DEFAULT 0 COMMENT '库存数量',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_type (type),
+    INDEX idx_price (price),
+    INDEX idx_is_available (is_available),
+    INDEX idx_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='配件表';
+
+-- ----------------------------------------------------------------------------
+-- 配置单表 (build_configs)
+-- 存储用户的装机配置单
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS build_configs;
+CREATE TABLE build_configs (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '配置单ID',
+    name VARCHAR(200) NOT NULL COMMENT '配置单名称',
+    description TEXT COMMENT '配置单描述',
+    total_price DECIMAL(10, 2) COMMENT '总价格',
+    user_id BIGINT COMMENT '用户ID',
+    is_public BOOLEAN DEFAULT FALSE COMMENT '是否公开',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_user_id (user_id),
+    INDEX idx_is_public (is_public),
+    INDEX idx_created_at (created_at),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='配置单表';
+
+-- ----------------------------------------------------------------------------
+-- 配置单配件关联表 (build_config_components)
+-- 存储配置单中的配件列表
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS build_config_components;
+CREATE TABLE build_config_components (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '关联ID',
+    build_config_id BIGINT NOT NULL COMMENT '配置单ID',
+    component_id BIGINT NOT NULL COMMENT '配件ID',
+    quantity INT DEFAULT 1 COMMENT '数量',
+    unit_price DECIMAL(10, 2) COMMENT '单价（保存时的价格）',
+    INDEX idx_build_config_id (build_config_id),
+    INDEX idx_component_id (component_id),
+    FOREIGN KEY (build_config_id) REFERENCES build_configs(id) ON DELETE CASCADE,
+    FOREIGN KEY (component_id) REFERENCES components(id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='配置单配件关联表';
+
+-- ============================================================================
+-- 示例数据插入
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
 -- 插入示例用户数据
+-- 密码：password (BCrypt 加密)
+-- ----------------------------------------------------------------------------
 INSERT INTO users (username, email, password_hash, display_name) VALUES
 ('admin', 'admin@buildmaster.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVEFDi', '管理员'),
-('testuser', 'test@buildmaster.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVEFDi', '测试用户');
+('testuser', 'test@buildmaster.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVEFDi', '测试用户'),
+('demouser', 'demo@buildmaster.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVEFDi', '演示用户');
 
--- 插入示例配置单数据
-INSERT INTO build_configs (name, description, total_price, user_id, is_public, created_at) VALUES
-('游戏配置单', '适合1080p游戏的入门级配置', 5095.00, 1, true, NOW()),
-('高端游戏配置', '适合1440p游戏的高端配置', 9995.00, 1, true, NOW()),
-('办公配置单', '适合日常办公的配置', 2999.00, 2, true, NOW());

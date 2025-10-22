@@ -2,23 +2,32 @@ package com.buildmaster.controller;
 
 import com.buildmaster.model.Component;
 import com.buildmaster.service.ComponentService;
+import com.buildmaster.service.ComponentImportService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/components")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
+@Tag(name = "配件管理", description = "配件CRUD、搜索、批量导入等接口")
 public class ComponentController {
     
     private final ComponentService componentService;
+    private final ComponentImportService importService;
     
     @GetMapping
     public ResponseEntity<List<Component>> getAllComponents() {
@@ -76,5 +85,90 @@ public class ComponentController {
     public ResponseEntity<Void> deleteComponent(@PathVariable Long id) {
         componentService.deleteComponent(id);
         return ResponseEntity.noContent().build();
+    }
+    
+    /**
+     * 爬取配件信息
+     */
+    @PostMapping("/crawl")
+    @Operation(summary = "爬取配件信息", description = "从电商平台爬取配件数据（需谨慎使用）")
+    public ResponseEntity<List<Component>> crawlComponents(
+            @RequestParam String type,
+            @RequestParam(required = false, defaultValue = "jd") String source,
+            @RequestParam(required = false, defaultValue = "") String keyword,
+            @RequestParam(required = false, defaultValue = "10") int maxCount) {
+        
+        // TODO: 注入 ComponentCrawlerService
+        // List<Component> components = crawlerService.crawlComponents(type, source, keyword, maxCount);
+        // return ResponseEntity.ok(components);
+        
+        // 暂时返回空列表
+        return ResponseEntity.ok(List.of());
+    }
+    
+    /**
+     * 批量导入热门配件（预定义数据）
+     */
+    @PostMapping("/import/popular")
+    @Operation(summary = "导入热门配件", description = "一键导入30+热门配件数据")
+    public ResponseEntity<Map<String, Object>> importPopularComponents() {
+        ComponentImportService.ImportResult result = importService.importPopularComponents();
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", !result.isFailed());
+        response.put("successCount", result.getSuccessCount());
+        response.put("skippedCount", result.getSkippedCount());
+        response.put("errorCount", result.getErrorCount());
+        response.put("errors", result.getErrors());
+        response.put("skipped", result.getSkipped());
+        response.put("message", result.isFailed() ? result.getMessage() : "导入完成");
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * 从CSV文件批量导入
+     */
+    @PostMapping(value = "/import/csv", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "CSV批量导入", description = "上传CSV文件批量导入配件")
+    public ResponseEntity<Map<String, Object>> importFromCSV(@RequestParam("file") MultipartFile file) {
+        if (file.isEmpty()) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "文件不能为空");
+            return ResponseEntity.badRequest().body(error);
+        }
+        
+        if (!file.getOriginalFilename().toLowerCase().endsWith(".csv")) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "只支持CSV格式文件");
+            return ResponseEntity.badRequest().body(error);
+        }
+        
+        ComponentImportService.ImportResult result = importService.importFromCSV(file);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", !result.isFailed());
+        response.put("successCount", result.getSuccessCount());
+        response.put("skippedCount", result.getSkippedCount());
+        response.put("errorCount", result.getErrorCount());
+        response.put("errors", result.getErrors());
+        response.put("skipped", result.getSkipped());
+        response.put("message", result.isFailed() ? result.getMessage() : "导入完成");
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * 下载CSV模板
+     */
+    @GetMapping(value = "/import/template", produces = "text/csv")
+    @Operation(summary = "下载CSV模板", description = "下载配件导入CSV模板文件")
+    public ResponseEntity<String> downloadCSVTemplate() {
+        String template = importService.generateCSVTemplate();
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=\"component_template.csv\"")
+                .body(template);
     }
 }

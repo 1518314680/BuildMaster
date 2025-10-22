@@ -1,22 +1,62 @@
 server:
   port: 8080
 
+# 文件上传配置
+file:
+  upload:
+    path: uploads/avatars
+
 spring:
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
   datasource:
     url: jdbc:mysql://localhost:3306/buildmaster?serverTimezone=UTC
     username: root
-    password: root
+    password: asd962464..
   jpa:
     hibernate:
       ddl-auto: update
   redis:
     host: localhost
     port: 6379
+  mail:
+    host: smtp.qq.com
+    port: 587
+    username: 1518314680@qq.com
+    password: yizyjiyrhfmpffei  # QQ邮箱授权码，需要在QQ邮箱设置中获取
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
 
-ai:
-  provider: deepseek
-  api-key: ${AI_API_KEY:your-key-here}
+#ai:
+#  provider: deepseek
+#  api-key: ${AI_API_KEY:your-key-here}
+
+# 京东开放平台配置（可选）
+# 申请地址: https://union.jd.com/openplatform/
+jd:
+  api:
+    enabled: false  # 是否启用京东API（设置为true启用）
+    app-key: ${JD_APP_KEY:}  # 京东应用Key
+    app-secret: ${JD_APP_SECRET:}  # 京东应用Secret
 
 logging:
   level:
     root: INFO
+
+springdoc:
+  api-docs:
+    path: /api-docs          # OpenAPI 文档 JSON 地址
+  swagger-ui:
+    path: /swagger-ui        # Swagger UI 访问路径
+    operationsSorter: method
+    tagsSorter: alpha

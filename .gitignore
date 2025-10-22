@@ -1,3 +1,5 @@
 BuildMaster-API/target
+BuildMaster-API/node_modules
 BuildMaster-UI/node_modules
 BuildMaster-UI/.next
+*.log
