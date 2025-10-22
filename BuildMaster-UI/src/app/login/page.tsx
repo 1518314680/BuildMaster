@@ -50,8 +50,8 @@ export default function LoginPage() {
           token: result.data.token,
         });
         
-        // 跳转到原来要访问的页面或首页
-        router.push(redirectTo);
+        // 使用完整页面跳转而不是客户端路由，确保 cookie 被正确发送
+        window.location.href = redirectTo;
       } else {
         setError(result.message || '登录失败，请检查邮箱和密码');
       }
@@ -65,7 +65,8 @@ export default function LoginPage() {
         displayName: '测试用户',
         token: 'mock_token',
       });
-      router.push(redirectTo);
+      // 使用完整页面跳转
+      window.location.href = redirectTo;
     } finally {
       setLoading(false);
     }

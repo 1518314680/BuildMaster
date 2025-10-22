@@ -4,6 +4,7 @@ import { useState } from 'react';
 import PcBuildCanvas from './components/PcBuildCanvas';
 import ComponentCard from './components/ComponentCard';
 import ConfigSummary from './components/ConfigSummary';
+import AuthGuard from '@/components/AuthGuard';
 import { useBuildStore } from '@/hooks/useBuildStore';
 import { Component, ComponentType } from '@/lib/types';
 
@@ -127,8 +128,9 @@ export default function BuildPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">
+    <AuthGuard requireAuth={true}>
+      <div className="min-h-screen bg-gray-50">
+        <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">装机配置器</h1>
           <p className="text-gray-600">选择您的硬件组件，构建完美的电脑配置</p>
@@ -249,7 +251,8 @@ export default function BuildPage() {
             </div>
           </div>
         )}
+        </div>
       </div>
-    </div>
+    </AuthGuard>
   );
 }

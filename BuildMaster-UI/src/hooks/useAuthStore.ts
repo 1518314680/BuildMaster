@@ -25,9 +25,10 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
 
       login: (userData: User) => {
-        // 设置cookie
-        document.cookie = `user_token=${userData.token || 'mock_token'}; path=/; max-age=86400`;
-        document.cookie = `user_id=${userData.id}; path=/; max-age=86400`;
+        // 设置cookie（确保在所有路径下都可访问）
+        const maxAge = 86400; // 24小时
+        document.cookie = `user_token=${userData.token || 'mock_token'}; path=/; max-age=${maxAge}; SameSite=Lax`;
+        document.cookie = `user_id=${userData.id}; path=/; max-age=${maxAge}; SameSite=Lax`;
         
         set({ 
           user: userData, 
