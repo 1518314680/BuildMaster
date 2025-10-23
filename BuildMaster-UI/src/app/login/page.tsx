@@ -50,23 +50,29 @@ export default function LoginPage() {
           token: result.data.token,
         });
         
-        // 使用完整页面跳转而不是客户端路由，确保 cookie 被正确发送
-        window.location.href = redirectTo;
+        // 使用客户端路由跳转（因为已禁用 middleware，使用 AuthGuard）
+        router.push(redirectTo);
       } else {
         setError(result.message || '登录失败，请检查邮箱和密码');
       }
     } catch (err) {
       // 开发环境：模拟登录成功（待后端API完成后删除）
       console.warn('登录API未实现，使用模拟登录');
-      login({
+      
+      const mockUser = {
         id: 1,
         username: 'testuser',
         email: formData.email,
         displayName: '测试用户',
-        token: 'mock_token',
-      });
-      // 使用完整页面跳转
-      window.location.href = redirectTo;
+        token: 'mock_token_' + Date.now(),
+      };
+      
+      console.log('[Login] 设置模拟用户:', mockUser);
+      login(mockUser);
+      
+      // 使用客户端路由跳转
+      console.log('[Login] 跳转到:', redirectTo);
+      router.push(redirectTo);
     } finally {
       setLoading(false);
     }
