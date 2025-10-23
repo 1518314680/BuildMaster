@@ -1,7 +1,7 @@
 ---
 alwaysApply: true
 ---
-开发需求：一个集「装机可视化配置 + AI 推荐 + 最终配置单生成 + 平台比价」于一体的 Web 应用。
+开发需求：一个集「装机可视化配置 + AI 推荐 + 最终配置单生成 + 平台比价」于一体的 Web 应用。视觉装配2.5D 动画（Canvas / Framer Motion），动画效果Framer Motion / GSAP，图形资源PNG 图层（透明背景，带阴影）
 cursor每一次keep all后 都要提交代码
 前端开发规则
 
