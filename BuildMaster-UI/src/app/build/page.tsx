@@ -59,21 +59,39 @@ export default function BuildPage() {
         setLoadingComponents(true);
         const response = await componentApi.getAllComponents();
         
+        let rawData: any[] = [];
         if (response && Array.isArray(response)) {
-          // 直接使用返回的数据
-          setComponents(response);
-          console.log('[Build] 成功加载配件:', response.length);
+          rawData = response;
         } else if (response.data && Array.isArray(response.data)) {
-          // 如果数据在 data 字段中
-          setComponents(response.data);
-          console.log('[Build] 成功加载配件:', response.data.length);
+          rawData = response.data;
         } else {
           console.warn('[Build] API返回数据格式异常，使用空数组');
           setComponents([]);
+          setLoadingComponents(false);
+          return;
         }
+        
+        // 映射后端字段到前端类型
+        const mappedComponents = rawData.map((item: any) => ({
+          ...item,
+          id: String(item.id),
+          type: mapBackendTypeToFrontend(item.type),
+          image: item.imageUrl || item.image || '/images/placeholder.png',
+          specifications: parseSpecifications(item.specifications || item.specs),
+          price: Number(item.price) || 0,
+          originalPrice: item.originalPrice ? Number(item.originalPrice) : undefined,
+          stockQuantity: item.stockQuantity ?? undefined,
+        }));
+        
+        setComponents(mappedComponents);
+        console.log('[Build] 成功加载配件:', mappedComponents.length, '个');
+        
+        // 统计京东数据
+        const jdCount = mappedComponents.filter((c: any) => c.jdSkuId && c.purchaseUrl).length;
+        console.log('[Build] 包含京东实时数据:', jdCount, '个');
+        
       } catch (err) {
         console.error('[Build] 加载配件失败:', err);
-        // 开发环境：如果后端未启动，显示提示
         console.warn('[Build] 后端API未连接，请确保后端服务已启动');
         setComponents([]);
       } finally {
@@ -83,6 +101,34 @@ export default function BuildPage() {
 
     loadComponents();
   }, []);
+  
+  // 映射后端类型枚举到前端类型
+  const mapBackendTypeToFrontend = (backendType: string): ComponentType => {
+    const typeMap: Record<string, ComponentType> = {
+      'CPU': 'cpu',
+      'GPU': 'gpu',
+      'MOTHERBOARD': 'motherboard',
+      'MEMORY': 'ram',
+      'STORAGE': 'storage',
+      'CASE': 'case',
+      'POWER_SUPPLY': 'psu',
+      'COOLER': 'cooler',
+    };
+    return typeMap[backendType] || backendType.toLowerCase() as ComponentType;
+  };
+  
+  // 解析规格参数（可能是JSON字符串或对象）
+  const parseSpecifications = (specs: any): Record<string, any> => {
+    if (!specs) return {};
+    if (typeof specs === 'string') {
+      try {
+        return JSON.parse(specs);
+      } catch {
+        return { 规格: specs };
+      }
+    }
+    return specs;
+  };
 
   const handleAddComponent = (component: Component) => {
     addComponent(component);
@@ -146,27 +192,45 @@ export default function BuildPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* 左侧：组件选择（按装机顺序） */}
+          {/* 左侧：2.5D 装机幕布 */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-              <h2 className="text-xl font-semibold mb-4">📦 按顺序选择组件</h2>
+            <div className="bg-white rounded-lg shadow-md p-6 sticky top-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold">🎨 2.5D 装机幕布</h2>
+                <button
+                  onClick={() => setShowFullscreen(true)}
+                  className="text-sm px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  🔍 全屏查看
+                </button>
+              </div>
+              <div className="h-[600px]">
+                <PcBuildCanvas selectedComponents={selectedComponents} />
+              </div>
+            </div>
+
+            {/* 组件选择区域（放在幕布下方） */}
+            <div className="bg-white rounded-lg shadow-md p-6 mt-8">
+              <h2 className="text-xl font-semibold mb-4">📦 选择组件</h2>
               
-              {components.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <p className="mb-2">⚠️ 暂无可用配件</p>
-                  <p className="text-sm">请确保后端服务已启动并导入配件数据</p>
+              {components.length === 0 && !loadingComponents && (
+                <div className="text-center py-8 text-gray-500 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <div className="text-4xl mb-3">⚠️</div>
+                  <p className="font-medium mb-2">暂无可用配件</p>
+                  <p className="text-sm mb-3">请确保后端服务已启动</p>
+                  <div className="text-xs text-left bg-white p-3 rounded mx-4">
+                    <p className="font-mono">后端地址: {process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001'}</p>
+                    <p className="font-mono mt-1">接口: GET /api/components</p>
+                  </div>
                 </div>
               )}
               
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {BUILD_ORDER.map((type, index) => {
                   const typeComponents = components.filter(comp => {
-                    // 处理类型映射（后端可能使用大写或不同的命名）
                     const compType = comp.type?.toLowerCase();
                     const targetType = type.toLowerCase();
-                    return compType === targetType || 
-                           (targetType === 'ram' && compType === 'memory') ||
-                           (targetType === 'psu' && (compType === 'power' || compType === 'power_supply'));
+                    return compType === targetType;
                   });
                   const selectedComponent = selectedComponents[type];
                   const stepNumber = index + 1;
@@ -188,9 +252,9 @@ export default function BuildPage() {
                       {selectedComponent ? (
                         <div className="flex items-center justify-between bg-green-50 p-3 rounded-lg border border-green-200">
                           <div className="flex items-center space-x-3">
-                            {selectedComponent.image && (
+                            {(selectedComponent.imageUrl || selectedComponent.image) && (
                               <img 
-                                src={selectedComponent.image} 
+                                src={selectedComponent.imageUrl || selectedComponent.image} 
                                 alt={selectedComponent.name}
                                 className="w-12 h-12 object-contain"
                                 onError={(e) => {
@@ -203,6 +267,11 @@ export default function BuildPage() {
                               <p className="text-sm text-gray-600">
                                 ¥{selectedComponent.price?.toFixed(2) || '0.00'}
                               </p>
+                              {selectedComponent.jdSkuId && selectedComponent.purchaseUrl && (
+                                <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded mt-1 inline-block">
+                                  京东实时价格
+                                </span>
+                              )}
                             </div>
                           </div>
                           <button
@@ -238,23 +307,8 @@ export default function BuildPage() {
             </div>
           </div>
 
-          {/* 右侧：配置摘要和3D预览 */}
+          {/* 右侧：配置摘要（Sticky） */}
           <div className="space-y-6">
-            {/* 3D 预览 */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold">🎨 2.5D 预览</h2>
-                <button
-                  onClick={() => setShowFullscreen(true)}
-                  className="text-sm text-blue-600 hover:text-blue-800"
-                >
-                  全屏查看
-                </button>
-              </div>
-              <PcBuildCanvas selectedComponents={selectedComponents} />
-            </div>
-
-            {/* 配置摘要 */}
             <ConfigSummary
               selectedComponents={selectedComponents}
               totalPrice={totalPrice}
