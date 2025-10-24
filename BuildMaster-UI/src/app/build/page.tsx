@@ -208,46 +208,134 @@ export default function BuildPage() {
                 <PcBuildCanvas selectedComponents={selectedComponents} />
               </div>
             </div>
+          </div>
 
-            {/* 组件选择区域（放在幕布下方） */}
-            <div className="bg-white rounded-lg shadow-md p-6 mt-8">
-              <h2 className="text-xl font-semibold mb-4">📦 选择组件</h2>
-              
-              {components.length === 0 && !loadingComponents && (
-                <div className="text-center py-8 text-gray-500 bg-yellow-50 rounded-lg border border-yellow-200">
-                  <div className="text-4xl mb-3">⚠️</div>
-                  <p className="font-medium mb-2">暂无可用配件</p>
-                  <p className="text-sm mb-3">请确保后端服务已启动</p>
-                  <div className="text-xs text-left bg-white p-3 rounded mx-4">
-                    <p className="font-mono">后端地址: {process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001'}</p>
-                    <p className="font-mono mt-1">接口: GET /api/components</p>
-                  </div>
+          {/* 右侧：配置摘要（Sticky） */}
+          <div className="space-y-6">
+            <ConfigSummary
+              selectedComponents={selectedComponents}
+              totalPrice={totalPrice}
+              onSave={() => setShowSaveDialog(true)}
+              onClear={handleClearBuild}
+              isLoading={isLoading}
+            />
+          </div>
+        </div>
+
+        {/* 组件选择区域（放在配置摘要下方） */}
+        <div className="mt-8">
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold">📦 选择组件</h2>
+              {components.length > 0 && (
+                <div className="text-sm text-gray-600">
+                  共 {components.length} 个配件可选
                 </div>
               )}
-              
-              <div className="space-y-4">
-                {BUILD_ORDER.map((type, index) => {
-                  const typeComponents = components.filter(comp => {
-                    const compType = comp.type?.toLowerCase();
-                    const targetType = type.toLowerCase();
-                    return compType === targetType;
-                  });
-                  const selectedComponent = selectedComponents[type];
-                  const stepNumber = index + 1;
-                  
-                  return (
-                    <div key={type} className="border rounded-lg p-4 relative">
-                      {/* 步骤标记 */}
-                      <div className="absolute -left-3 -top-3 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-md">
-                        {stepNumber}
-                      </div>
-                      
-                      <h3 className="text-lg font-medium mb-3 flex items-center space-x-2">
-                        <span>{COMPONENT_TYPE_NAMES[type] || type}</span>
-                        {selectedComponent && (
-                          <span className="text-green-600 text-sm">✓ 已选择</span>
+            </div>
+            
+            {components.length === 0 && !loadingComponents && (
+              <div className="text-center py-8 text-gray-500 bg-yellow-50 rounded-lg border border-yellow-200">
+                <div className="text-4xl mb-3">⚠️</div>
+                <p className="font-medium mb-2">暂无可用配件</p>
+                <p className="text-sm mb-3">请确保后端服务已启动</p>
+                <div className="text-xs text-left bg-white p-3 rounded mx-4">
+                  <p className="font-mono">后端地址: {process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080'}</p>
+                  <p className="font-mono mt-1">接口: GET /api/components</p>
+                  <p className="font-mono mt-1 text-red-600">⚠️ 请检查后端服务是否在此端口运行</p>
+                </div>
+              </div>
+            )}
+            
+            {/* 装机进度连接线 */}
+            {components.length > 0 && (
+              <div className="mb-6 px-4">
+                <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
+                  <span>装机进度</span>
+                  <span>{Object.keys(selectedComponents).length} / {BUILD_ORDER.length}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {BUILD_ORDER.map((type, index) => {
+                    const isCompleted = !!selectedComponents[type];
+                    return (
+                      <div key={type} className="flex items-center flex-1">
+                        {/* 进度圆点 */}
+                        <div 
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                            isCompleted 
+                              ? 'bg-green-500 text-white scale-110 shadow-lg' 
+                              : 'bg-gray-300 text-gray-600'
+                          }`}
+                          title={COMPONENT_TYPE_NAMES[type]}
+                        >
+                          {isCompleted ? '✓' : index + 1}
+                        </div>
+                        {/* 连接线 */}
+                        {index < BUILD_ORDER.length - 1 && (
+                          <div className={`flex-1 h-1 mx-1 transition-all duration-300 ${
+                            isCompleted ? 'bg-green-500' : 'bg-gray-300'
+                          }`} />
                         )}
-                      </h3>
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* 图例 */}
+                <div className="flex items-center justify-center space-x-4 mt-3 text-xs">
+                  {BUILD_ORDER.map((type) => {
+                    const isCompleted = !!selectedComponents[type];
+                    return (
+                      <span 
+                        key={type}
+                        className={`transition-colors duration-300 ${
+                          isCompleted ? 'text-green-600 font-medium' : 'text-gray-500'
+                        }`}
+                      >
+                        {COMPONENT_TYPE_NAMES[type]}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+              
+            <div className="space-y-4">
+              {BUILD_ORDER.map((type, index) => {
+                const typeComponents = components.filter(comp => {
+                  const compType = comp.type?.toLowerCase();
+                  const targetType = type.toLowerCase();
+                  return compType === targetType;
+                });
+                const selectedComponent = selectedComponents[type];
+                const stepNumber = index + 1;
+                const isCompleted = !!selectedComponent;
+                
+                return (
+                  <div 
+                    key={type} 
+                    className={`border rounded-lg p-4 relative transition-all duration-300 ${
+                      isCompleted 
+                        ? 'border-green-300 bg-green-50' 
+                        : 'border-gray-200 bg-white'
+                    }`}
+                  >
+                    {/* 步骤标记 */}
+                    <div className={`absolute -left-3 -top-3 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-md transition-all duration-300 ${
+                      isCompleted 
+                        ? 'bg-green-500 text-white' 
+                        : 'bg-blue-600 text-white'
+                    }`}>
+                      {isCompleted ? '✓' : stepNumber}
+                    </div>
+                    
+                    <h3 className={`text-lg font-medium mb-3 flex items-center space-x-2 transition-colors duration-300 ${
+                      isCompleted ? 'text-green-700' : 'text-gray-900'
+                    }`}>
+                      <span>{COMPONENT_TYPE_NAMES[type] || type}</span>
+                      {selectedComponent && (
+                        <span className="text-green-600 text-sm animate-pulse">✓ 已完成</span>
+                      )}
+                    </h3>
                       
                       {selectedComponent ? (
                         <div className="flex items-center justify-between bg-green-50 p-3 rounded-lg border border-green-200">
@@ -306,18 +394,6 @@ export default function BuildPage() {
               </div>
             </div>
           </div>
-
-          {/* 右侧：配置摘要（Sticky） */}
-          <div className="space-y-6">
-            <ConfigSummary
-              selectedComponents={selectedComponents}
-              totalPrice={totalPrice}
-              onSave={() => setShowSaveDialog(true)}
-              onClear={handleClearBuild}
-              isLoading={isLoading}
-            />
-          </div>
-        </div>
 
         {/* 错误提示 */}
         {error && (
