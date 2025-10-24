@@ -1,6 +1,7 @@
 'use client';
 
 import { Component } from '@/lib/types';
+import ImageWithFallback from '@/components/ImageWithFallback';
 
 interface ComponentCardProps {
   component: Component;
@@ -20,13 +21,13 @@ export default function ComponentCard({ component, onSelect }: ComponentCardProp
   return (
     <div className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer bg-white">
       <div className="flex items-start space-x-3">
-        <img
+        <ImageWithFallback
           src={imageUrl}
           alt={component.name}
+          width={64}
+          height={64}
           className="w-16 h-16 object-contain flex-shrink-0"
-          onError={(e) => {
-            e.currentTarget.src = '/images/placeholder.png';
-          }}
+          fallbackType={component.type}
         />
         <div className="flex-1 min-w-0">
           <h4 className="font-medium text-gray-900 text-sm line-clamp-2 mb-1">

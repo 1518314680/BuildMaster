@@ -1,6 +1,7 @@
 'use client';
 
 import { Component, ComponentType } from '@/lib/types';
+import ImageWithFallback from '@/components/ImageWithFallback';
 
 interface ConfigSummaryProps {
   selectedComponents: {
@@ -67,13 +68,13 @@ export default function ConfigSummary({
               return (
                 <div key={type} className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                   <div className="flex items-start space-x-3">
-                    <img
+                    <ImageWithFallback
                       src={imageUrl}
                       alt={component.name}
+                      width={48}
+                      height={48}
                       className="w-12 h-12 object-contain flex-shrink-0"
-                      onError={(e) => {
-                        e.currentTarget.src = '/images/placeholder.png';
-                      }}
+                      fallbackType={component.type}
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">

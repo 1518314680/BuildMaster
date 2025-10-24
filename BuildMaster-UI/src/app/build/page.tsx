@@ -51,6 +51,7 @@ export default function BuildPage() {
   const [loadingComponents, setLoadingComponents] = useState(true);
   const [currentStep, setCurrentStep] = useState(0); // 当前装机步骤
   const [showFullscreen, setShowFullscreen] = useState(false); // 全屏预览
+  const [viewMode, setViewMode] = useState<'select' | 'summary'>('select'); // 视图模式：选择配件 | 配置摘要
 
   // 从数据库加载配件数据
   useEffect(() => {
@@ -149,7 +150,22 @@ export default function BuildPage() {
   const handleClearBuild = () => {
     if (confirm('确定要清空当前配置吗？')) {
       clearBuild();
+      setViewMode('select'); // 清空后返回选择模式
     }
+  };
+
+  // 切换到配置摘要
+  const handleViewSummary = () => {
+    if (Object.keys(selectedComponents).length === 0) {
+      alert('请至少选择一个配件！');
+      return;
+    }
+    setViewMode('summary');
+  };
+
+  // 返回选择配件
+  const handleBackToSelect = () => {
+    setViewMode('select');
   };
 
   // 加载状态
@@ -171,8 +187,12 @@ export default function BuildPage() {
       <div className="min-h-screen bg-gray-50">
         <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">🖥️ 装机配置器</h1>
-          <p className="text-gray-600">按照真实装机流程，选择您的硬件组件</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            🖥️ 装机配置器
+          </h1>
+          <p className="text-gray-600">
+            {viewMode === 'select' ? '按照真实装机流程，选择您的硬件配件' : '查看您的装机配置'}
+          </p>
           
           {/* 装机进度条 */}
           <div className="mt-4 bg-white rounded-lg p-4 shadow-sm">
@@ -191,42 +211,140 @@ export default function BuildPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* 左侧：2.5D 装机幕布 */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-md p-6 sticky top-4">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold">🎨 2.5D 装机幕布</h2>
-                <button
-                  onClick={() => setShowFullscreen(true)}
-                  className="text-sm px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  🔍 全屏查看
-                </button>
+        {/* 视图切换 */}
+        {viewMode === 'select' ? (
+          /* ========== 选择配件视图 ========== */
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* 左侧：2.5D 装机幕布 */}
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-lg shadow-md p-6 sticky top-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold">🎨 2.5D 装机幕布</h2>
+                  <button
+                    onClick={() => setShowFullscreen(true)}
+                    className="text-sm px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    🔍 全屏查看
+                  </button>
+                </div>
+                <div className="h-[600px]">
+                  <PcBuildCanvas selectedComponents={selectedComponents} />
+                </div>
               </div>
-              <div className="h-[600px]">
-                <PcBuildCanvas selectedComponents={selectedComponents} />
+            </div>
+
+            {/* 右侧：快捷操作面板 */}
+            <div className="space-y-6">
+              <div className="bg-white rounded-lg shadow-md p-6 sticky top-4">
+                <h2 className="text-xl font-semibold mb-4">⚡ 快捷操作</h2>
+                
+                {/* 已选配件统计 */}
+                <div className="mb-4 p-4 bg-blue-50 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-gray-700">已选配件</span>
+                    <span className="text-2xl font-bold text-blue-600">
+                      {Object.keys(selectedComponents).length}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-600">
+                    共需选择 {BUILD_ORDER.length} 个配件
+                  </div>
+                </div>
+
+                {/* 总价预览 */}
+                <div className="mb-4 p-4 bg-green-50 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-700">当前总价</span>
+                    <span className="text-2xl font-bold text-green-600">
+                      ¥{totalPrice.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 操作按钮 */}
+                <div className="space-y-2">
+                  <button
+                    onClick={handleViewSummary}
+                    disabled={Object.keys(selectedComponents).length === 0}
+                    className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
+                  >
+                    📋 查看配置摘要
+                  </button>
+                  
+                  {Object.keys(selectedComponents).length > 0 && (
+                    <button
+                      onClick={handleClearBuild}
+                      className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      🗑️ 清空配置
+                    </button>
+                  )}
+                </div>
+
+                {/* 提示信息 */}
+                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    💡 <span className="font-medium">提示：</span>
+                    {Object.keys(selectedComponents).length === 0 
+                      ? '请开始选择配件' 
+                      : '选择完成后查看配置摘要'}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
+        ) : (
+          /* ========== 配置摘要视图 ========== */
+          <div className="max-w-5xl mx-auto">
+            <div className="mb-4">
+              <button
+                onClick={handleBackToSelect}
+                className="px-4 py-2 text-blue-600 hover:text-blue-800 flex items-center space-x-2 hover:bg-blue-50 rounded-lg transition-colors"
+              >
+                <span>←</span>
+                <span>返回选择配件</span>
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* 左侧：2.5D 装机幕布 */}
+              <div className="lg:col-span-2">
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold">🎨 2.5D 装机幕布</h2>
+                    <button
+                      onClick={() => setShowFullscreen(true)}
+                      className="text-sm px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      🔍 全屏查看
+                    </button>
+                  </div>
+                  <div className="h-[600px]">
+                    <PcBuildCanvas selectedComponents={selectedComponents} />
+                  </div>
+                </div>
+              </div>
 
-          {/* 右侧：配置摘要（Sticky） */}
-          <div className="space-y-6">
-            <ConfigSummary
-              selectedComponents={selectedComponents}
-              totalPrice={totalPrice}
-              onSave={() => setShowSaveDialog(true)}
-              onClear={handleClearBuild}
-              isLoading={isLoading}
-            />
+              {/* 右侧：配置摘要 */}
+              <div className="space-y-6">
+                <ConfigSummary
+                  selectedComponents={selectedComponents}
+                  totalPrice={totalPrice}
+                  onSave={() => setShowSaveDialog(true)}
+                  onClear={handleClearBuild}
+                  isLoading={isLoading}
+                />
+              </div>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* 组件选择区域（放在配置摘要下方） */}
-        <div className="mt-8">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold">📦 选择组件</h2>
+        {/* 组件选择区域（仅在选择模式显示） */}
+        {viewMode === 'select' && (
+          <div className="mt-8">
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold">📦 选择配件</h2>
               {components.length > 0 && (
                 <div className="text-sm text-gray-600">
                   共 {components.length} 个配件可选
@@ -394,6 +512,7 @@ export default function BuildPage() {
               </div>
             </div>
           </div>
+        )}
 
         {/* 错误提示 */}
         {error && (
